@@ -1,0 +1,14 @@
+.DS_Store
+.git/**
+.gitignore
+.vscode/**
+data/**
+android/**
+node_modules/**
+check.js
+build.sh
+build/**
+!build/cursor-status.apk
+*.vsix
+*.md
+!README.md

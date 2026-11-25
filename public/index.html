@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Cursor 状态</title>
+<style>
+/* 电纸屏：纯黑白、无动画、粗字 */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#fff;color:#000;font-family:sans-serif;font-weight:bold;overflow:hidden;-webkit-user-select:none;user-select:none}
+#top{height:9vmin;display:flex;justify-content:space-between;align-items:center;padding:0 3vmin;border-bottom:.6vmin solid #000;font-size:4vmin}
+#dots span{display:inline-block;width:2.6vmin;height:2.6vmin;border:.5vmin solid #000;border-radius:50%;margin-left:1.6vmin}
+#dots span.on{background:#000}
+#off{display:none;background:#000;color:#fff;text-align:center;font-size:4vmin;padding:1vmin}
+#card{height:calc(100% - 9vmin);padding:3vmin;overflow:hidden}
+.big{font-size:17vmin;line-height:1.1;margin:1vmin 0 2vmin}
+.banner{border:.8vmin solid #000;padding:2vmin;font-size:5vmin;text-align:center;margin-bottom:2vmin}
+.row{display:flex;justify-content:space-between;font-size:4.6vmin;padding:1.2vmin 0;border-bottom:.3vmin solid #000}
+.row span:first-child{margin-right:3vmin;flex:none}
+.row span:last-child{text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bar{height:3vmin;border:.5vmin solid #000;margin:1vmin 0 2vmin}
+.bar i{display:block;height:100%;background:#000}
+.item{margin-bottom:2vmin}
+.item .h{display:flex;justify-content:space-between;font-size:4.4vmin}
+.item .h span:first-child{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-right:2vmin}
+.item .s{font-size:3.2vmin;font-weight:normal}
+.grid{display:flex;flex-wrap:wrap;margin-bottom:2vmin}
+.grid div{width:50%;padding:1vmin 0}
+.grid b{display:block;font-size:9vmin}
+.grid small{font-size:3.6vmin;font-weight:normal}
+.cols{display:flex;align-items:flex-end;height:30vmin;border-bottom:.6vmin solid #000}
+.cols div{flex:1;margin:0 .8vmin;background:#000}
+.sum{font-size:4.4vmin;padding-bottom:1.2vmin;border-bottom:.6vmin solid #000;margin-bottom:1vmin}
+.ses{padding:1.2vmin 1.5vmin;border-bottom:.3vmin solid #000}
+.ses .h{display:flex;justify-content:space-between;font-size:4.4vmin}
+.ses .h .t{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-right:2vmin}
+.ses .h .v{flex:none}
+.ses .s{font-size:3.2vmin;font-weight:normal;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ses.done{background:#000;color:#fff}
+.ses.hot{border-left:2vmin solid #000}
+.lbl{display:flex}
+.lbl span{flex:1;text-align:center;font-size:3.2vmin}
+</style>
+</head>
+<body>
+<div id="top"><span id="title"></span><span id="dots"></span></div>
+<div id="off"></div>
+<div id="card"></div>
+<script>
+var ver0 = 0, cards = [], idx = 0, last = '', lastOk = 0, online = true, ackId = '', battery = ''
+var $ = function (id) { return document.getElementById(id) }
+function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c] }) }
+function rows(lines) { return lines.map(function (l) { return '<div class="row"><span>' + esc(l.k) + '</span><span>' + esc(l.v) + '</span></div>' }).join('') }
+function bar(f) { return '<div class="bar"><i style="width:' + Math.round(f * 100) + '%"></i></div>' }
+
+function render() {
+  var c = cards[idx]
+  if (!c) return
+  var d = c.data, h = ''
+  ackId = '' // 仅会话卡有待确认提示时才会重新置位
+  if (c.type === 'sessions') {
+    ackId = d.banner ? 'all' : ''
+    h = (d.banner ? '<div class="banner">' + esc(d.banner) + '</div>' : '') +
+      (d.rows.length ? d.rows.map(function (r) {
+        return '<div class="ses' + (r.done ? ' done' : '') + (r.hot ? ' hot' : '') + '"><div class="h"><span class="t">' +
+          (r.done ? '✔ ' : '') + '[' + esc(r.tag) + '] ' + esc(r.title) + '</span><span class="v">' + esc(r.token) +
+          '</span></div><div class="s">' + esc(r.sub) + '</div></div>'
+      }).join('') : '<div class="big">空闲</div>')
+  } else if (c.type === 'big') {
+    h = (d.banner ? '<div class="banner">' + esc(d.banner) + '</div>' : '') +
+      '<div class="big">' + esc(d.big) + '</div>' + (d.frac != null ? bar(d.frac) : '')
+    var lines = d.lines.slice()
+    if (d.device) {
+      lines.unshift({k: '电脑', v: online ? '在线' : '离线'}, {k: '手机电量', v: battery || '未知'}, {k: '服务器', v: location.host})
+      lines.push({k: '最后刷新', v: new Date(lastOk).toLocaleTimeString()})
+    }
+    h += rows(lines)
+  } else if (c.type === 'list') {
+    h = d.length ? d.map(function (r) {
+      return '<div class="item"><div class="h"><span>' + esc(r.label) + '</span><span>' + esc(r.value) + '</span></div>' +
+        bar(r.frac || 0) + (r.sub ? '<div class="s">' + esc(r.sub) + '</div>' : '') + '</div>'
+    }).join('') : '<div class="big">无</div>'
+  } else if (c.type === 'chart') {
+    h = '<div class="grid">' + d.grid.map(function (g) { return '<div><b>' + esc(g.v) + '</b><small>' + esc(g.k) + '</small></div>' }).join('') + '</div>' +
+      '<div class="cols">' + d.cols.map(function (x) { return '<div style="height:' + Math.max(1, Math.round(x.frac * 100)) + '%"></div>' }).join('') + '</div>' +
+      '<div class="lbl">' + d.cols.map(function (x) { return '<span>' + esc(x.label) + '<br>' + esc(x.v) + '</span>' }).join('') + '</div>'
+  }
+  $('title').textContent = c.title
+  var dots = ''
+  for (var i = 0; i < cards.length; i++) dots += '<span class="' + (i === idx ? 'on' : '') + '"></span>'
+  $('dots').innerHTML = dots
+  $('card').innerHTML = h
+}
+
+function go(n) { idx = (idx + n + cards.length) % cards.length; last = ''; render() }
+
+function poll() {
+  var x = new XMLHttpRequest()
+  x.open('GET', '/api/cards?_=' + Date.now())
+  x.timeout = 4000
+  x.onload = function () {
+    online = true; lastOk = Date.now(); $('off').style.display = 'none'
+    // 仅内容变化时重绘，减少电纸屏刷新
+    if (x.responseText !== last) {
+      last = x.responseText; var j = JSON.parse(last)
+      if (ver0 && j.ver !== ver0) return location.reload() // 页面更新后自动重载
+      ver0 = j.ver; cards = j.cards; render()
+    }
+  }
+  x.onerror = x.ontimeout = function () {
+    if (online) { online = false; last = '' }
+    $('off').textContent = '电脑离线，最后在线 ' + (lastOk ? new Date(lastOk).toLocaleTimeString() : '无'); $('off').style.display = 'block'
+  }
+  x.send()
+}
+poll(); setInterval(poll, 4000)
+
+function setBattery(p) {
+  var next = Math.round(p) + '%'
+  if (next === battery) return
+  battery = next
+  last = '' // 强制下一轮重绘；若当前就在设备卡，立刻刷新
+  if (cards[idx] && cards[idx].id === 'device') render()
+}
+window.__setBattery = setBattery
+if (navigator.getBattery) navigator.getBattery().then(function (b) {
+  setBattery(b.level * 100)
+  b.addEventListener('levelchange', function () { setBattery(b.level * 100) })
+  b.addEventListener('chargingchange', function () { setBattery(b.level * 100) })
+})
+setInterval(function () { // WebView 有时不派发 levelchange，兜底轮询
+  if (navigator.getBattery) navigator.getBattery().then(function (b) { setBattery(b.level * 100) })
+}, 30000)
+
+// 点击左 30% 上一页，右 30% 下一页；有待确认的完成提示时，点任意位置都是确认，不翻页
+var sx = 0
+document.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX })
+document.addEventListener('touchend', function (e) {
+  var dx = e.changedTouches[0].clientX - sx
+  if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1)
+})
+document.addEventListener('click', function (e) {
+  if (ackId) {
+    var x = new XMLHttpRequest(); x.open('POST', '/ack/' + ackId); x.onload = poll; x.send(); ackId = ''
+    return
+  }
+  var r = e.clientX / window.innerWidth
+  if (r < 0.3) go(-1)
+  else if (r > 0.7) go(1)
+})
+</script>
+</body>
+</html>

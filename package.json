@@ -1,0 +1,25 @@
+{
+  "name": "cursor-status",
+  "displayName": "Cursor 状态",
+  "description": "在局域网展示 Cursor 会话状态、token 和额度。支持 macOS 与 Windows，启动后自动开服务。",
+  "version": "0.2.0",
+  "publisher": "lidefang0918",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lidefang0918/cursor-status.git"
+  },
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "extensionKind": ["ui"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "cursorStatus.open", "title": "打开 Cursor 状态" }
+    ]
+  },
+  "scripts": {
+    "package": "vsce package"
+  }
+}
